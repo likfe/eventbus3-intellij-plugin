@@ -719,7 +719,7 @@ public class ShowUsagesAction extends AnAction implements PopupAction{
                 + new JLabel(getFullTitle(usages, title, hadMoreSeparator, visibleNodes.size() - 1, true)).getPreferredSize().getWidth()
                 + settingsButton.getPreferredSize().getWidth());
         myWidth = -1;
-        for (AnAction action : toolbar.getChildren(null)) {
+        for (AnAction action : toolbar.getChildren((AnActionEvent)null)) {
             action.unregisterCustomShortcutSet(usageView.getComponent());
             action.registerCustomShortcutSet(action.getShortcutSet(), content);
         }

@@ -1,6 +1,5 @@
 package com.likfe.ideaplugin.eventbus3.kt;
 
-import com.intellij.codeHighlighting.Pass;
 import com.intellij.codeInsight.daemon.GutterIconNavigationHandler;
 import com.intellij.codeInsight.daemon.LineMarkerInfo;
 import com.intellij.find.FindManager;
@@ -24,7 +23,6 @@ import com.likfe.ideaplugin.eventbus3.utils.Constants;
 import com.likfe.ideaplugin.eventbus3.utils.MLog;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.idea.findUsages.KotlinFindUsagesHandlerFactory;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinUserTypeStubImpl;
 
@@ -69,7 +67,7 @@ public class LineMarkerProviderKotlin implements com.intellij.codeInsight.daemon
                             parameter = parameterList.getParameters().get(0);
                             typeReference = parameter.getTypeReference();
                             ktUserType = (KtUserType) typeReference.getFirstChild();
-                            userTypeStub = new KotlinUserTypeStubImpl(ktUserType.getStub());
+                            //userTypeStub = new KotlinUserTypeStubImpl(ktUserType.getStub());
                             ktNameReferenceExpression = (KtNameReferenceExpression) ktUserType.getFirstChild();
                             eventClass = (LeafPsiElement) ktNameReferenceExpression.getFirstChild();
                             MLog.debug("kt SHOW_SENDERS 3: " + eventClass.toString());
@@ -79,7 +77,7 @@ public class LineMarkerProviderKotlin implements com.intellij.codeInsight.daemon
                             Project project2 = postMethod.getProject();
                             FindUsagesManager findUsagesManager = ((FindManagerImpl) FindManager.getInstance(project)).getFindUsagesManager();
                             //new KotlinFindUsagesHandlerFactory(project).getFindClassOptions();
-                            KotlinFindUsagesHandlerFactory kotlinFindUsagesHandlerFactory = new KotlinFindUsagesHandlerFactory(project);
+                            //KotlinFindUsagesHandlerFactory kotlinFindUsagesHandlerFactory = new KotlinFindUsagesHandlerFactory(project);
 
 //                            FindUsagesHandler findUsagesHandler = kotlinFindUsagesHandlerFactory.createFindUsagesHandler(parameter, false);
 //                            AbstractFindUsagesDialog dialog2 = findUsagesHandler.getFindUsagesDialog(false, true, true);
@@ -181,15 +179,11 @@ public class LineMarkerProviderKotlin implements com.intellij.codeInsight.daemon
         if (!PsiUtils.isKotlin(psiElement)) return null;
 
         if (PsiUtils.isEventBusPost(psiElement)) {
-            LineMarkerInfo info = new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
-                    Pass.UPDATE_ALL, null, SHOW_RECEIVERS,
-                    GutterIconRenderer.Alignment.LEFT);
-            return info;
+            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
+                    null, SHOW_RECEIVERS, GutterIconRenderer.Alignment.LEFT);
         } else if (PsiUtils.isEventBusReceiver(psiElement)) {
-            LineMarkerInfo info = new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
-                    Pass.UPDATE_ALL, null, SHOW_SENDERS,
-                    GutterIconRenderer.Alignment.LEFT);
-            return info;
+            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
+                    null, SHOW_SENDERS, GutterIconRenderer.Alignment.LEFT);
         }
 
         return null;

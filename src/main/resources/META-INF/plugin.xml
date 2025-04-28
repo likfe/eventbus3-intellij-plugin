@@ -1,41 +1,14 @@
 <idea-plugin>
     <id>com.likfe.ideaplugin.eventbus3</id>
     <name>EventBus3-IDEA</name>
-    <vendor email="ys743276112@gmail.com" url="https://github.com/likfe/eventbus3-intellij-plugin">
+    <vendor url="https://github.com/likfe/eventbus3-intellij-plugin">
         eventbus3-intellij-plugin
     </vendor>
 
-    <description><![CDATA[
-    2020.* 即将适配 Kotlin,建议升级到 Android Studio 4.1及以上以使用最新版本<br/>
-
-    Provides actions which allow you quickly move around the event bus.(now it only for EventBus 3.x)
-    <ul>
-      <li><code>EventBus.post</code> to <code>@Subscribe</code> or <code>onEventMainThread</code></li>
-      <li><code>EventBus.postSticky</code> to <code>@Subscribe</code> or <code>onEventMainThread</code></li>
-      <li><code>@Subscribe</code> to <code>EventBus.post</code></li>
-    </ul>
-    为 EventBus 提供快速索引和跳转（当前只支持 EventBus 3.x 版本）
-    <ul>
-      <li>从 <code>EventBus.post</code> 到 <code>@Subscribe</code> 或者 <code>onEventMainThread</code></li>
-      <li>从 <code>EventBus.postSticky</code> 到 <code>@Subscribe</code> 或者 <code>onEventMainThread</code></li>
-      <li>从 <code>@Subscribe</code> 到 <code>EventBus.post</code></li>
-    </ul>
-
-    ]]>
-    </description>
-
-    <change-notes><![CDATA[
-      change plugin name `EventBus3 Intellij Plugin` to `EventBus3-IDEA`<br>
-      replace deprecated API<br>
-      Adapter Android Studio 4.1(IntelliJ 201)<br><br>
-      修改插件名称`EventBus3 Intellij Plugin` 为 `EventBus3-IDEA`<br>
-      替换了标记为 deprecated 的 API<br>
-      适配 Android Studio 4.1 (IntelliJ 201)<br>
-    ]]>
-    </change-notes>
-
-    <!-- please see https://jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
-    <!--    <idea-version since-build="201.6"/>-->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.java</depends>
+    <depends>org.jetbrains.kotlin</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
@@ -47,26 +20,32 @@
                 implementationClass="com.likfe.ideaplugin.eventbus3.kt.LineMarkerProviderKotlin"/>
     </extensions>
 
-    <application-components>
-        <!-- Add your application components here -->
-    </application-components>
+    <description><![CDATA[
+        2025.* 即将适配 Kotlin,建议升级到 Android Studio 4.1及以上以使用最新版本<br/>
 
-    <project-components>
-        <!-- Add your project components here -->
-    </project-components>
+        Provides actions which allow you quickly move around the event bus.(now it only for EventBus 3.x)
+        <ul>
+          <li><code>EventBus.post</code> to <code>@Subscribe</code> or <code>onEventMainThread</code></li>
+          <li><code>EventBus.postSticky</code> to <code>@Subscribe</code> or <code>onEventMainThread</code></li>
+          <li><code>@Subscribe</code> to <code>EventBus.post</code></li>
+        </ul>
+        为 EventBus 提供快速索引和跳转（当前只支持 EventBus 3.x 版本）
+        <ul>
+          <li>从 <code>EventBus.post</code> 到 <code>@Subscribe</code> 或者 <code>onEventMainThread</code></li>
+          <li>从 <code>EventBus.postSticky</code> 到 <code>@Subscribe</code> 或者 <code>onEventMainThread</code></li>
+          <li>从 <code>@Subscribe</code> 到 <code>EventBus.post</code></li>
+        </ul>
 
-    <actions>
-        <!-- Add your actions here -->
-    </actions>
-    <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
-         on how to target different products -->
-    <!-- uncomment to enable plugin in all products
-    <depends>com.intellij.modules.lang</depends>
-    -->
-    <depends>com.intellij.modules.platform</depends>
-    <depends>com.intellij.modules.lang</depends>
-    <depends>com.intellij.modules.java</depends>
-    <!--    <depends optional="true" config-file="">org.jetbrains.kotlin</depends>-->
-    <depends>org.jetbrains.kotlin</depends>
+        ]]>
+    </description>
 
+    <change-notes><![CDATA[
+          upgrade project config<br>
+          replace deprecated API<br>
+          Adapter Android Studio 2024(IntelliJ 2024)<br><br>
+          升级工程配置为最新<br>
+          替换了标记为 deprecated 的 API<br>
+          适配 Android Studio 2024 (IntelliJ 2024)<br>
+        ]]>
+    </change-notes>
 </idea-plugin>

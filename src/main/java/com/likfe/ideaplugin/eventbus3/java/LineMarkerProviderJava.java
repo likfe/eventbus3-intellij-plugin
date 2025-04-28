@@ -95,15 +95,11 @@ public class LineMarkerProviderJava implements com.intellij.codeInsight.daemon.L
         if (!PsiUtils.isJava(psiElement)) return null;
         //if (!(psiElement instanceof PsiIdentifier && psiElement.getParent() instanceof PsiMethod)) return null;
         if (PsiUtils.isEventBusPost(psiElement)) {
-            LineMarkerInfo info = new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
-                    Pass.UPDATE_ALL, null, SHOW_RECEIVERS,
-                    GutterIconRenderer.Alignment.LEFT);
-            return info;
+            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
+                    null, SHOW_RECEIVERS, GutterIconRenderer.Alignment.LEFT);
         } else if (PsiUtils.isEventBusReceiver(psiElement)) {
-            LineMarkerInfo info = new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
-                    Pass.UPDATE_ALL, null, SHOW_SENDERS,
-                    GutterIconRenderer.Alignment.LEFT);
-            return info;
+            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
+                    null, SHOW_SENDERS, GutterIconRenderer.Alignment.LEFT);
         }
         return null;
     }

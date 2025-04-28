@@ -32,6 +32,7 @@ import com.intellij.usages.impl.UsageNode;
 import com.intellij.usages.impl.UsageViewImpl;
 import com.intellij.usages.rules.UsageInFile;
 import com.intellij.util.ui.EmptyIcon;
+import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -39,7 +40,7 @@ import javax.swing.*;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 
-class  ShowUsagesTableCellRenderer implements TableCellRenderer {
+class ShowUsagesTableCellRenderer implements TableCellRenderer {
 
     private final UsageViewImpl myUsageView;
 
@@ -143,11 +144,11 @@ class  ShowUsagesTableCellRenderer implements TableCellRenderer {
         if (node.canNavigateToSource()) {
             SimpleColoredComponent renderer = new SimpleColoredComponent();
 
-            renderer.setIcon(group.getIcon(false));
+            renderer.setIcon(group.getIcon());
             SimpleTextAttributes attributes = deriveAttributesWithColor(SimpleTextAttributes.REGULAR_ATTRIBUTES, fileBgColor);
-            renderer.append(group.getText(myUsageView), attributes);
+            renderer.append(group.getPresentableGroupText(), attributes);
             renderer.append(" ", attributes);
-            renderer.setIpad(new Insets(0, 0, 0, 0));
+            renderer.setIpad(JBUI.emptyInsets());
             renderer.setBorder(null);
             panel.add(renderer);
         }
