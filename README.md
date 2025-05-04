@@ -13,13 +13,18 @@ Plugin to navigate between events posted by [EventBus](https://github.com/greenr
 
 There are two ways.
 
-- Preference -> Plugins -> Browse `EventBus` -> Select `EventBus3-IDEA` -> push Install plugin Btn.
+- Preference -> Plugins -> Browse `EventBus` -> Select `EventBus3` -> push Install plugin Btn.
 
 - [Download](https://github.com/likfe/eventbus3-intellij-plugin/releases) the plugin zip and select "Install Plugin From Disk" in IntelliJ's plugin preferences.
 
 ----
 
 ## Change Log
+
+### 2025-05-05
+- update project config
+- support kotlin
+- replace deprecated API
 
 ### 2020-10-15
 - build with 2020.1.4
