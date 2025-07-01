@@ -74,6 +74,9 @@ Originator did not reply our's issue,I try to let it work
 
 - [Unsupported major.minor version 52.0](https://github.com/likfe/eventbus3-intellij-plugin/issues/1)
 
+## Sponsored
+The CDN acceleration and security protection of this project are sponsored by [Tencent EdgeOne](https://edgeone.ai/?from=github).
+![EdgeOne](https://edgeone.ai/media/34fe3a45-492d-4ea4-ae5d-ea1087ca7b4b.png)
 
 ## License 
 
