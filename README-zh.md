@@ -64,10 +64,6 @@
 
 - [Unsupported major.minor version 52.0](https://github.com/likfe/eventbus3-intellij-plugin/issues/1)
 
-## 赞助
-本项目的CDN加速和安全防护由腾讯EdgeOne赞助。[最佳亚洲 CDN、Edge 和安全解决方案 - 腾讯 EdgeOne](https://edgeone.ai/?from=github)
-![](https://edgeone.ai/media/34fe3a45-492d-4ea4-ae5d-ea1087ca7b4b.png)
-
 ## License
 
 ```
