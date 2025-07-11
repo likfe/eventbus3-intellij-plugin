@@ -18,6 +18,7 @@ import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiUtilBase;
 import com.intellij.ui.awt.RelativePoint;
 import com.likfe.ideaplugin.eventbus3.PsiUtils;
+import com.likfe.ideaplugin.eventbus3.ShowSendersAction;
 import com.likfe.ideaplugin.eventbus3.ShowReceiversAction;
 import com.likfe.ideaplugin.eventbus3.utils.Constants;
 import com.likfe.ideaplugin.eventbus3.utils.MLog;
@@ -111,7 +112,7 @@ public class LineMarkerProviderKotlin implements com.intellij.codeInsight.daemon
                             //KotlinEditorOptions options;
                             //findUsagesManager.findUsages(eventClass, null, );
 
-                            new ShowUsagesAction(new SenderFilterKotlin(eventClass))
+                            new ShowSendersAction(new SenderFilterKotlin(eventClass))
                                     .startFindUsages(
                                             postMethod,
                                             new RelativePoint(e),
