@@ -55,7 +55,7 @@ class ShowUsagesTableCellRenderer implements TableCellRenderer {
         Usage usage = usageNode == null ? null : usageNode.getUsage();
 
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        Color fileBgColor = getBackgroundColor(isSelected, usage);
+        Color fileBgColor = null; // Disable getting the file color because it triggers the file re-indexing (why?) which is forbidden on EDT
         final Color bg = UIUtil.getListSelectionBackground();
         final Color fg = UIUtil.getListSelectionForeground();
         panel.setBackground(isSelected ? bg : fileBgColor == null ? list.getBackground() : fileBgColor);
