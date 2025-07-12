@@ -1,6 +1,5 @@
 package com.likfe.ideaplugin.eventbus3.java;
 
-import com.intellij.codeHighlighting.Pass;
 import com.intellij.codeInsight.daemon.GutterIconNavigationHandler;
 import com.intellij.codeInsight.daemon.LineMarkerInfo;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
@@ -17,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import java.awt.event.MouseEvent;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Created by kgmyshin on 15/06/08.
@@ -34,13 +34,14 @@ public class LineMarkerProviderJava implements com.intellij.codeInsight.daemon.L
             new GutterIconNavigationHandler<PsiElement>() {
                 @Override
                 public void navigate(MouseEvent e, PsiElement psiElement) {
-                    if (psiElement instanceof PsiMethod) {
+                    if (psiElement instanceof PsiIdentifier identifier) {
+                        PsiElement methodDeclaration = identifier.getParent();
+                        PsiMethod method = (PsiMethod) methodDeclaration;
+
                         Project project = psiElement.getProject();
                         JavaPsiFacade javaPsiFacade = JavaPsiFacade.getInstance(project);
                         PsiClass eventBusClass = javaPsiFacade.findClass(Constants.FUN_EVENT_CLASS, GlobalSearchScope.allScope(project));
                         if (eventBusClass == null) return;
-
-                        PsiMethod method = (PsiMethod) psiElement;
 
                         //post
                         PsiMethod postMethod = eventBusClass.findMethodsByName(Constants.FUN_NAME, false)[0];
@@ -72,8 +73,10 @@ public class LineMarkerProviderJava implements com.intellij.codeInsight.daemon.L
             new GutterIconNavigationHandler<PsiElement>() {
                 @Override
                 public void navigate(MouseEvent e, PsiElement psiElement) {
-                    if (psiElement instanceof PsiMethodCallExpression) {
-                        PsiMethodCallExpression expression = (PsiMethodCallExpression) psiElement;
+                    if (psiElement instanceof PsiIdentifier identifier) {
+                        PsiElement reference = identifier.getParent();
+                        PsiElement methodCall = reference.getParent();
+                        PsiMethodCallExpression expression = (PsiMethodCallExpression) methodCall;
                         try {
                             PsiType[] expressionTypes = expression.getArgumentList().getExpressionTypes();
                             if (expressionTypes.length > 0) {
@@ -95,13 +98,27 @@ public class LineMarkerProviderJava implements com.intellij.codeInsight.daemon.L
         if (!PsiUtils.isJava(psiElement)) return null;
         //if (!(psiElement instanceof PsiIdentifier && psiElement.getParent() instanceof PsiMethod)) return null;
         if (PsiUtils.isEventBusPost(psiElement)) {
-            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
-                    null, SHOW_RECEIVERS, GutterIconRenderer.Alignment.LEFT);
+            PsiReferenceExpression expression = findChildElement(psiElement, PsiReferenceExpression.class);
+            PsiIdentifier identifier = findChildElement(expression, PsiIdentifier.class);
+            return new LineMarkerInfo<>(identifier, identifier.getTextRange(), Constants.ICON, null, SHOW_RECEIVERS, GutterIconRenderer.Alignment.LEFT);
         } else if (PsiUtils.isEventBusReceiver(psiElement)) {
-            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
-                    null, SHOW_SENDERS, GutterIconRenderer.Alignment.LEFT);
+            PsiMethod method = (PsiMethod) psiElement;
+            PsiIdentifier identifier = findChildElement(method, PsiIdentifier.class);
+            return new LineMarkerInfo<>(identifier, identifier.getTextRange(), Constants.ICON, null, SHOW_SENDERS, GutterIconRenderer.Alignment.LEFT);
         }
         return null;
+    }
+
+    private static <T extends PsiElement> T findChildElement(@NotNull PsiElement psiElement, Class<T> target) {
+        @NotNull PsiElement[] children = psiElement.getChildren();
+        for (PsiElement child : children) {
+            if (target.isInstance(child)) {
+                @SuppressWarnings("unchecked")
+                T t = (T) child;
+                return t;
+            }
+        }
+        throw new NoSuchElementException();
     }
 
     @Override
