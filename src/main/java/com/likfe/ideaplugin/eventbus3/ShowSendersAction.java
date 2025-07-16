@@ -82,6 +82,9 @@ import java.awt.event.ActionListener;
 import java.util.*;
 import java.util.List;
 
+import static com.likfe.ideaplugin.eventbus3.ShowUsagesTableCellRenderer.MORE_USAGES_SEPARATOR;
+import static com.likfe.ideaplugin.eventbus3.ShowUsagesTableCellRenderer.MORE_USAGES_SEPARATOR_NODE;
+
 /**
  * modify by likfe ( https://github.com/likfe/ ) in 2016/09/05
  * <p>
@@ -92,9 +95,6 @@ public class ShowSendersAction extends AnAction implements PopupAction{
     private static final int USAGES_PAGE_SIZE = 100;
 
     private Filter filter;
-
-    static final NullUsage MORE_USAGES_SEPARATOR = NullUsage.INSTANCE;
-    private static final UsageNode MORE_USAGES_SEPARATOR_NODE = UsageViewImpl.NULL_NODE;
 
     private static final Comparator<UsageNode> USAGE_NODE_COMPARATOR = new Comparator<UsageNode>() {
         @Override
