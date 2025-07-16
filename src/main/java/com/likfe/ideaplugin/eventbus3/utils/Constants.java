@@ -11,8 +11,10 @@ public class Constants {
 
     public static final Boolean IS_DEBUG = true;
 
-    public static final String ICON_PATH = "/icons/icon.png";
-    public static final Icon ICON = IconLoader.getIcon(Constants.ICON_PATH);
+    public static final String ICON_PATH_EGRESS = "/icons/egress.svg";
+    public static final String ICON_PATH_INGRESS = "/icons/ingress.svg";
+    public static final Icon ICON_EGRESS = IconLoader.getIcon(Constants.ICON_PATH_EGRESS);
+    public static final Icon ICON_INGRESS = IconLoader.getIcon(Constants.ICON_PATH_INGRESS);
     public static final int MAX_USAGES = 100;
     public static final String FUN_START = "EventBus.getDefault()";
     public static final String FUN_NAME = "post";

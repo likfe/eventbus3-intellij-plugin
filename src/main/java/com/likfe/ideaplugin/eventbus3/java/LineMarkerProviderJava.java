@@ -100,11 +100,11 @@ public class LineMarkerProviderJava implements com.intellij.codeInsight.daemon.L
         if (PsiUtils.isEventBusPost(psiElement)) {
             PsiReferenceExpression expression = findChildElement(psiElement, PsiReferenceExpression.class);
             PsiIdentifier identifier = findChildElement(expression, PsiIdentifier.class);
-            return new LineMarkerInfo<>(identifier, identifier.getTextRange(), Constants.ICON, null, SHOW_RECEIVERS, GutterIconRenderer.Alignment.LEFT);
+            return new LineMarkerInfo<>(identifier, identifier.getTextRange(), Constants.ICON_EGRESS, null, SHOW_RECEIVERS, GutterIconRenderer.Alignment.LEFT);
         } else if (PsiUtils.isEventBusReceiver(psiElement)) {
             PsiMethod method = (PsiMethod) psiElement;
             PsiIdentifier identifier = findChildElement(method, PsiIdentifier.class);
-            return new LineMarkerInfo<>(identifier, identifier.getTextRange(), Constants.ICON, null, SHOW_SENDERS, GutterIconRenderer.Alignment.LEFT);
+            return new LineMarkerInfo<>(identifier, identifier.getTextRange(), Constants.ICON_INGRESS, null, SHOW_SENDERS, GutterIconRenderer.Alignment.LEFT);
         }
         return null;
     }

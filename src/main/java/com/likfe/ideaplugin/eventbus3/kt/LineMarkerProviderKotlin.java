@@ -179,10 +179,10 @@ public class LineMarkerProviderKotlin implements com.intellij.codeInsight.daemon
         if (!PsiUtils.isKotlin(psiElement)) return null;
 
         if (PsiUtils.isEventBusPost(psiElement)) {
-            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
+            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON_EGRESS,
                     null, SHOW_RECEIVERS, GutterIconRenderer.Alignment.LEFT);
         } else if (PsiUtils.isEventBusReceiver(psiElement)) {
-            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON,
+            return new LineMarkerInfo<PsiElement>(psiElement, psiElement.getTextRange(), Constants.ICON_INGRESS,
                     null, SHOW_SENDERS, GutterIconRenderer.Alignment.LEFT);
         }
 
