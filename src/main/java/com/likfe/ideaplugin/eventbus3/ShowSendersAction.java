@@ -50,12 +50,16 @@ import com.intellij.openapi.util.Condition;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.IdeFocusManager;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiMethod;
+import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.ProjectScope;
 import com.intellij.psi.search.PsiElementProcessor;
 import com.intellij.psi.search.SearchScope;
+import com.intellij.psi.search.searches.AnnotatedElementsSearch;
 import com.intellij.ui.*;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.ui.popup.AbstractPopup;
@@ -66,10 +70,12 @@ import com.intellij.usages.rules.UsageFilteringRuleProvider;
 import com.intellij.util.Alarm;
 import com.intellij.util.PlatformIcons;
 import com.intellij.util.Processor;
+import com.intellij.util.Query;
 import com.intellij.util.messages.MessageBusConnection;
 import com.intellij.util.ui.AsyncProcessIcon;
 import com.intellij.util.ui.ColumnInfo;
 import com.intellij.util.ui.ListTableModel;
+import com.likfe.ideaplugin.eventbus3.utils.Constants;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -81,6 +87,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.likfe.ideaplugin.eventbus3.ShowUsagesTableCellRenderer.MORE_USAGES_SEPARATOR;
 import static com.likfe.ideaplugin.eventbus3.ShowUsagesTableCellRenderer.MORE_USAGES_SEPARATOR_NODE;
@@ -228,12 +235,33 @@ public class ShowSendersAction extends AnAction implements PopupAction{
         HintManager.getInstance().hideHints(HintManager.HIDE_BY_ANY_KEY, false, false);
     }
 
+    @NotNull
+    private static PsiMethod[] findAnnotatedMethods(Project project, String annotationFqn) {
+        PsiClass annotationClass = JavaPsiFacade.getInstance(project).findClass(annotationFqn, GlobalSearchScope.allScope(project));
+        if (annotationClass == null) {
+            return PsiMethod.EMPTY_ARRAY;
+        }
+
+        Query<PsiMethod> query = AnnotatedElementsSearch.searchPsiMethods(annotationClass, GlobalSearchScope.projectScope(project));
+        PsiMethod[] result = query.toArray(PsiMethod.EMPTY_ARRAY);
+
+        return result;
+    }
+
     public void startFindUsages(@NotNull PsiElement element, @NotNull RelativePoint popupPosition, Editor editor, int maxUsages) {
         Project project = element.getProject();
         FindUsagesManager findUsagesManager = ((FindManagerImpl)FindManager.getInstance(project)).getFindUsagesManager();
         FindUsagesHandler handler = findUsagesManager.getNewFindUsagesHandler(element, false);
-        if (handler == null) return;
-        showElementUsages(handler, editor, popupPosition, maxUsages, getDefaultOptions(handler));
+
+
+        PsiMethod[] annotatedMethods = findAnnotatedMethods(project, Constants.ANNO_POST_CLASS);
+        FindUsagesHandler[] handlers = new FindUsagesHandler[annotatedMethods.length];
+        for (int i = 0; i < annotatedMethods.length; i++) {
+            PsiMethod annotatedMethod = annotatedMethods[i];
+            handlers[i] = findUsagesManager.getNewFindUsagesHandler(annotatedMethod, false);
+        }
+
+        showElementUsages(handler, handlers, editor, popupPosition, maxUsages, getDefaultOptions(handler));
     }
 
     @NotNull
@@ -244,11 +272,15 @@ public class ShowSendersAction extends AnAction implements PopupAction{
         return options;
     }
 
-    private void showElementUsages(@NotNull final FindUsagesHandler handler,
+    private void showElementUsages(@Nullable final FindUsagesHandler handler,
+                                   @Nullable final FindUsagesHandler[] handlers,
                                    final Editor editor,
                                    @NotNull final RelativePoint popupPosition,
                                    final int maxUsages,
                                    @NotNull final FindUsagesOptions options) {
+
+        if (handler == null && (handlers == null || handlers.length == 0)) return;
+
         ApplicationManager.getApplication().assertIsDispatchThread();
         final UsageViewSettings usageViewSettings = UsageViewSettings.getInstance();
         final UsageViewSettings savedGlobalSettings = new UsageViewSettings();
@@ -343,10 +375,7 @@ public class ShowSendersAction extends AnAction implements PopupAction{
 
         final Object mutex = new Object();
 
-        PsiElement eventBusPost = handler.getPsiElement();
-        Processor<Usage> collect = new UsageProcessor(eventBusPost, ShowSendersAction.this.filter, mutex, usages, visibleNodes, maxUsages, usageView, pingEDT);
-
-        final ProgressIndicator indicator = FindUsagesManager.startProcessUsages(handler, handler.getPrimaryElements(), handler.getSecondaryElements(), collect, options, new Runnable() {
+        Runnable onAllComplete = new Runnable() {
             @Override
             public void run() {
                 ApplicationManager.getApplication().invokeLater(new Runnable() {
@@ -398,11 +427,42 @@ public class ShowSendersAction extends AnAction implements PopupAction{
                     }
                 }, project.getDisposed());
             }
-        });
+        };
+
+        final AtomicInteger counter = new AtomicInteger(0);
+        Runnable onOneComplete = new Runnable() {
+            @Override
+            public void run() {
+                if (counter.decrementAndGet() <= 0) {
+                    onAllComplete.run();
+                }
+            }
+        };
+
+        final List<ProgressIndicator> indicators = new ArrayList<>();
+
+        if (handler != null) {
+            counter.incrementAndGet();
+            PsiElement eventBusPost = handler.getPsiElement();
+            Processor<Usage> collect = new UsageProcessor(eventBusPost, filter, mutex, usages, visibleNodes, maxUsages, usageView, pingEDT);
+            ProgressIndicator indicator = FindUsagesManager.startProcessUsages(handler, handler.getPrimaryElements(), handler.getSecondaryElements(), collect, options, onOneComplete);
+            indicators.add(indicator);
+        }
+
+        if (handlers != null) {
+            for (FindUsagesHandler handler2 : handlers) {
+                counter.incrementAndGet();
+                PsiElement postingMethod = handler2.getPsiElement();
+                Processor<Usage> collect2 = new UsageProcessor(postingMethod, filter, mutex, usages, visibleNodes, maxUsages, usageView, pingEDT);
+                final ProgressIndicator indicator2 = FindUsagesManager.startProcessUsages(handler2, handler2.getPrimaryElements(), handler2.getSecondaryElements(), collect2, options, onOneComplete);
+                indicators.add(indicator2);
+            }
+        }
+
         Disposer.register(popup, new Disposable() {
             @Override
             public void dispose() {
-                indicator.cancel();
+                indicators.forEach(ProgressIndicator::cancel);
             }
         });
     }
@@ -548,7 +608,7 @@ public class ShowSendersAction extends AnAction implements PopupAction{
         dialog.show();
         if (dialog.isOK()) {
             dialog.calcFindUsagesOptions();
-            showElementUsages(handler, editor, popupPosition, maxUsages, getDefaultOptions(handler));
+            showElementUsages(handler, null, editor, popupPosition, maxUsages, getDefaultOptions(handler));
         }
     }
 
@@ -738,7 +798,7 @@ public class ShowSendersAction extends AnAction implements PopupAction{
                                   int maxUsages) {
         FindUsagesOptions cloned = options.clone();
         cloned.searchScope = FindUsagesManager.getMaximalScope(handler);
-        showElementUsages(handler, editor, popupPosition, maxUsages, cloned);
+        showElementUsages(handler, null, editor, popupPosition, maxUsages, cloned);
     }
 
     @Nullable
@@ -972,7 +1032,7 @@ public class ShowSendersAction extends AnAction implements PopupAction{
     }
 
     private void appendMoreUsages(Editor editor, @NotNull RelativePoint popupPosition, @NotNull FindUsagesHandler handler, int maxUsages) {
-        showElementUsages(handler, editor, popupPosition, maxUsages+USAGES_PAGE_SIZE, getDefaultOptions(handler));
+        showElementUsages(handler, null, editor, popupPosition, maxUsages+USAGES_PAGE_SIZE, getDefaultOptions(handler));
     }
 
     private void addUsageNodes(@NotNull GroupNode root, @NotNull final UsageViewImpl usageView, @NotNull List<UsageNode> outNodes) {

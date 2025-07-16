@@ -47,9 +47,9 @@ public class LineMarkerProviderJava implements com.intellij.codeInsight.daemon.L
                         //post
                         PsiMethod postMethod = eventBusClass.findMethodsByName(Constants.FUN_NAME, false)[0];
                         if (null != postMethod) {
-                            PsiClass eventClass = ((PsiClassType) method.getParameterList().getParameters()[0].getTypeElement().getType()).resolve();
-
-                            new ShowSendersAction(new SenderFilterJava(eventClass)).startFindUsages(postMethod, new RelativePoint(e), PsiUtilBase.findEditor(psiElement), Constants.MAX_USAGES);
+                            PsiType psiType = method.getParameterList().getParameters()[0].getType();
+                            SenderFilterJava filter = new SenderFilterJava(psiType);
+                            new ShowSendersAction(filter).startFindUsages(postMethod, new RelativePoint(e), PsiUtilBase.findEditor(psiElement), Constants.MAX_USAGES);
                         }
 
                         //postSticky
