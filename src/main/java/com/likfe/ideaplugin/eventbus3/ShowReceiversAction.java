@@ -88,7 +88,7 @@ import java.util.List;
  * add ShowUsagesAction(), if Registering actions in the plugin.xml file,ShowUsagesAction must have ShowUsagesAction()
  */
 
-public class ShowUsagesAction extends AnAction implements PopupAction{
+public class ShowReceiversAction extends AnAction implements PopupAction{
     private static final int USAGES_PAGE_SIZE = 100;
 
     private Filter filter;
@@ -134,7 +134,7 @@ public class ShowUsagesAction extends AnAction implements PopupAction{
     @Nullable
     private Runnable mySearchEverywhereRunnable;
 
-    public ShowUsagesAction() {
+    public ShowReceiversAction() {
         setInjectedContext(true);
         final UsageViewSettings usageViewSettings = UsageViewSettings.getInstance();
         myUsageViewSettings = new UsageViewSettings();
@@ -146,7 +146,7 @@ public class ShowUsagesAction extends AnAction implements PopupAction{
         myUsageViewSettings.setGroupByScope(false);
     }
 
-    public ShowUsagesAction(Filter filter) {
+    public ShowReceiversAction(Filter filter) {
         this.filter = filter;
         setInjectedContext(true);
 

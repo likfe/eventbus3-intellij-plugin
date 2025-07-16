@@ -61,7 +61,7 @@ class ShowUsagesTableCellRenderer implements TableCellRenderer {
         panel.setBackground(isSelected ? bg : fileBgColor == null ? list.getBackground() : fileBgColor);
         panel.setForeground(isSelected ? fg : list.getForeground());
 
-        if (usage == null || usageNode instanceof ShowUsagesAction.StringNode) {
+        if (usage == null || usageNode instanceof ShowReceiversAction.StringNode) {
             panel.setLayout(new BorderLayout());
             if (column == 0) {
                 panel.add(new JLabel("<html><body><b>" + value + "</b></body></html>", SwingConstants.CENTER));
@@ -77,12 +77,12 @@ class ShowUsagesTableCellRenderer implements TableCellRenderer {
         if (column == 0) {
             GroupNode parent = (GroupNode) usageNode.getParent();
             appendGroupText(parent, panel, fileBgColor);
-            if (usage == ShowUsagesAction.MORE_USAGES_SEPARATOR) {
+            if (usage == ShowReceiversAction.MORE_USAGES_SEPARATOR) {
                 textChunks.append("...<");
                 textChunks.append("more usages", SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
                 textChunks.append(">...");
             }
-        } else if (usage != ShowUsagesAction.MORE_USAGES_SEPARATOR) {
+        } else if (usage != ShowReceiversAction.MORE_USAGES_SEPARATOR) {
             UsagePresentation presentation = usage.getPresentation();
             TextChunk[] text = presentation.getText();
 
