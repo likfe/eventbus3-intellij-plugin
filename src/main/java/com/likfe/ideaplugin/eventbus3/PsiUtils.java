@@ -29,6 +29,8 @@ public class PsiUtils {
 
             if (psiElement instanceof PsiMethod) {
                 PsiMethod method = (PsiMethod) psiElement;
+                if (!hasValidSignature(method)) return false;
+
                 PsiModifierList modifierList = method.getModifierList();
                 for (PsiAnnotation psiAnnotation : modifierList.getAnnotations()) {
                     if (safeEquals(psiAnnotation.getQualifiedName(), Constants.FUN_ANNOTATION)) {
@@ -54,6 +56,22 @@ public class PsiUtils {
         return false;
     }
 
+    private static boolean hasValidSignature(PsiMethod method) {
+        return isPublicNotStatic(method) && isVoid(method) && hasSingleParameter(method);
+    }
+
+    private static boolean isPublicNotStatic(PsiMethod method) {
+        return method.hasModifierProperty("public") && !method.hasModifierProperty("static");
+    }
+
+    private static boolean hasSingleParameter(PsiMethod method) {
+        return method.getParameterList().getParametersCount() == 1;
+    }
+
+    private static boolean isVoid(PsiMethod method) {
+        return PsiTypes.voidType().equals(method.getReturnType());
+    }
+
     public static boolean isEventBusPost(PsiElement psiElement) {
         if (psiElement.getLanguage().is(Language.findLanguageByID("JAVA"))) {
 
@@ -75,9 +93,16 @@ public class PsiUtils {
                 if (method != null) {
                     String name = method.getName();
                     PsiElement parent = method.getParent();
-                    if ((safeEquals(Constants.FUN_NAME, name) || safeEquals(Constants.FUN_NAME2, name)) && parent instanceof PsiClass) {
-                        PsiClass implClass = (PsiClass) parent;
-                        return isEventBusClass(implClass) || isSuperClassEventBus(implClass);
+                    if (parent instanceof PsiClass implClass) {
+                        if (isEventBusClass(implClass) || isSuperClassEventBus(implClass) || isEventBusFacade(implClass) /*|| containsPostingMethod(implClass)*/) {
+                            if (safeEquals(Constants.FUN_NAME, name) || safeEquals(Constants.FUN_NAME2, name) /*|| isPostingMethod(method)*/) {
+                                return true;
+                            }
+                        }
+
+                        if (isPostingMethod(method)) {
+                            return true;
+                        }
                     }
                 }
             }
@@ -100,6 +125,56 @@ public class PsiUtils {
                 }
             }
         }
+        return false;
+    }
+
+    private static boolean isPostingMethod(PsiMethod method) {
+        // expected signature: <T, R> void name(T message) { }
+        if (!hasSingleParameter(method)) {
+            return false;
+        }
+
+        if (isAnnotatedPosting(method)) return true;
+
+        PsiMethod[] superMethods = method.findSuperMethods();
+        for (PsiMethod superMethod : superMethods) {
+            if (isAnnotatedPosting(superMethod)) return true;
+        }
+
+        return false;
+    }
+
+    private static boolean isAnnotatedPosting(PsiMethod method) {
+        return method.getAnnotation(Constants.ANNO_POST_CLASS) != null;
+    }
+
+    private static boolean isEventBusFacade(PsiClass psiClass) {
+        return isAnnotatedWithPosting(psiClass);
+    }
+
+    private static boolean isAnnotatedWithPosting(PsiClass psiClass) {
+        PsiAnnotation[] annotations = psiClass.getAnnotations();
+        for (PsiAnnotation annotation : annotations) {
+            if (Constants.ANNO_POST_CLASS.equals(annotation.getQualifiedName())) return true;
+        }
+
+        PsiClass[] ifaces = psiClass.getInterfaces();
+        PsiClass[] supers = psiClass.getSupers();
+
+        // TODO For better performance, walk the class tree rather in breadth than in depth
+
+        for (PsiClass iface : ifaces) {
+            if (isAnnotatedWithPosting(iface)) {
+                return true;
+            }
+        }
+
+        for (PsiClass superClass : supers) {
+            if (isAnnotatedWithPosting(superClass)) {
+                return true;
+            }
+        }
+
         return false;
     }
 
