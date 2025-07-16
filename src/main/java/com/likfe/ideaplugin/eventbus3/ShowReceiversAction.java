@@ -50,8 +50,10 @@ import com.intellij.openapi.util.Condition;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.IdeFocusManager;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiType;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.ProjectScope;
 import com.intellij.psi.search.PsiElementProcessor;
@@ -81,6 +83,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.likfe.ideaplugin.eventbus3.ShowUsagesTableCellRenderer.MORE_USAGES_SEPARATOR;
 import static com.likfe.ideaplugin.eventbus3.ShowUsagesTableCellRenderer.MORE_USAGES_SEPARATOR_NODE;
@@ -231,9 +234,47 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
     public void startFindUsages(@NotNull PsiElement element, @NotNull RelativePoint popupPosition, Editor editor, int maxUsages) {
         Project project = element.getProject();
         FindUsagesManager findUsagesManager = ((FindManagerImpl)FindManager.getInstance(project)).getFindUsagesManager();
-        FindUsagesHandler handler = findUsagesManager.getNewFindUsagesHandler(element, false);
-        if (handler == null) return;
-        showElementUsages(handler, editor, popupPosition, maxUsages, getDefaultOptions(handler));
+        if (element instanceof PsiClass psiClass) {
+            FindUsagesHandler handler = findUsagesManager.getNewFindUsagesHandler(element, false);
+            if (handler == null) return;
+
+            Set<PsiClass> allTypes = new HashSet<>();
+
+            // Collect interfaces implemented by the class
+            collectInterfacesRecursively(psiClass, allTypes);
+
+            // And add all superclasses and their interfaces
+            PsiType[] superTypes = psiClass.getSuperTypes();
+            for (PsiType superType : superTypes) {
+                PsiClass superClass = PsiUtils.getClass(superType);
+                if (superClass != null) {
+                    allTypes.add(superClass);
+                    collectInterfacesRecursively(superClass, allTypes);
+                }
+            }
+
+            // Create handlers for all collected types
+            List<FindUsagesHandler> handlers = new ArrayList<>(allTypes.size());
+            for (PsiClass typeElement : allTypes) {
+                FindUsagesHandler handler2 = findUsagesManager.getNewFindUsagesHandler(typeElement, false);
+                if (handler2 != null) {
+                    handlers.add(handler2);
+                }
+            }
+
+            showElementUsages(handler, handlers, editor, popupPosition, maxUsages, getDefaultOptions(handler));
+        }
+    }
+
+    private void collectInterfacesRecursively(PsiClass psiClass, Set<PsiClass> collected) {
+        // Get all interfaces implemented by this class
+        for (PsiClass iface : psiClass.getInterfaces()) {
+            boolean added = collected.add(iface);
+            if (added) {
+                // Recursively process super-interfaces
+                collectInterfacesRecursively(iface, collected);
+            }
+        }
     }
 
     @NotNull
@@ -245,6 +286,7 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
     }
 
     private void showElementUsages(@NotNull final FindUsagesHandler handler,
+                                   @Nullable final List<FindUsagesHandler> handlers,
                                    final Editor editor,
                                    @NotNull final RelativePoint popupPosition,
                                    final int maxUsages,
@@ -341,41 +383,9 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
             }
         });
 
+        final Object mutex = new Object();
 
-        Processor<Usage> collect = new Processor<Usage>() {
-            private final UsageTarget[] myUsageTarget = {new PsiElement2UsageTargetAdapter(handler.getPsiElement())};
-            @Override
-            public boolean process(@NotNull Usage usage) {
-                synchronized (usages) {
-                    if (!filter.shouldShow(usage)) return true;
-                    if (visibleNodes.size() >= maxUsages) return false;
-                    if (UsageViewManager.isSelfUsage(usage, myUsageTarget)) {
-                        return true;
-                    }
-
-                    Usage usageToAdd = transform(usage);
-                    if (usageToAdd == null) return true;
-
-                    UsageNode node = usageView.doAppendUsage(usageToAdd);
-                    usages.add(usageToAdd);
-                    if (node != null) {
-                        visibleNodes.add(node);
-                        boolean continueSearch = true;
-                        if (visibleNodes.size() == maxUsages) {
-                            visibleNodes.add(MORE_USAGES_SEPARATOR_NODE);
-                            usages.add(MORE_USAGES_SEPARATOR);
-                            continueSearch = false;
-                        }
-                        pingEDT.ping();
-
-                        return continueSearch;
-                    }
-                    return true;
-                }
-            }
-        };
-
-        final ProgressIndicator indicator = FindUsagesManager.startProcessUsages(handler, handler.getPrimaryElements(), handler.getSecondaryElements(), collect, options, new Runnable() {
+        Runnable onAllComplete = new Runnable() {
             @Override
             public void run() {
                 ApplicationManager.getApplication().invokeLater(new Runnable() {
@@ -386,7 +396,7 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
                         parent.remove(processIcon);
                         parent.repaint();
                         pingEDT.ping(); // repaint title
-                        synchronized (usages) {
+                        synchronized (mutex) {
                             if (visibleNodes.isEmpty()) {
                                 if (usages.isEmpty()) {
                                     String text = UsageViewBundle.message("no.usages.found.in", searchScopePresentableName(options, project));
@@ -427,17 +437,44 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
                     }
                 }, project.getDisposed());
             }
-        });
+        };
+
+        final AtomicInteger counter = new AtomicInteger(0);
+        Runnable onOneComplete = new Runnable() {
+            @Override
+            public void run() {
+                if (counter.decrementAndGet() <= 0) {
+                    onAllComplete.run();
+                }
+            }
+        };
+
+        final List<ProgressIndicator> indicators = new ArrayList<>();
+
+        if (handler != null) {
+            counter.incrementAndGet();
+            PsiElement messageClass = handler.getPsiElement();
+            Processor<Usage> collect = new UsageProcessor(messageClass, filter, mutex, usages, visibleNodes, maxUsages, usageView, pingEDT);
+            ProgressIndicator indicator = FindUsagesManager.startProcessUsages(handler, handler.getPrimaryElements(), handler.getSecondaryElements(), collect, options, onOneComplete);
+            indicators.add(indicator);
+        }
+
+        if (handlers != null) {
+            for (FindUsagesHandler handler2 : handlers) {
+                counter.incrementAndGet();
+                PsiElement messageSuperclass = handler2.getPsiElement();
+                Processor<Usage> collect2 = new UsageProcessor(messageSuperclass, filter, mutex, usages, visibleNodes, maxUsages, usageView, pingEDT);
+                final ProgressIndicator indicator2 = FindUsagesManager.startProcessUsages(handler2, handler2.getPrimaryElements(), handler2.getSecondaryElements(), collect2, options, onOneComplete);
+                indicators.add(indicator2);
+            }
+        }
+
         Disposer.register(popup, new Disposable() {
             @Override
             public void dispose() {
-                indicator.cancel();
+                indicators.forEach(ProgressIndicator::cancel);
             }
         });
-    }
-
-    protected @Nullable Usage transform(@NotNull Usage usage) {
-        return usage;
     }
 
     @NotNull
@@ -581,7 +618,7 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
         dialog.show();
         if (dialog.isOK()) {
             dialog.calcFindUsagesOptions();
-            showElementUsages(handler, editor, popupPosition, maxUsages, getDefaultOptions(handler));
+            showElementUsages(handler, null, editor, popupPosition, maxUsages, getDefaultOptions(handler));
         }
     }
 
@@ -771,7 +808,7 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
                                   int maxUsages) {
         FindUsagesOptions cloned = options.clone();
         cloned.searchScope = FindUsagesManager.getMaximalScope(handler);
-        showElementUsages(handler, editor, popupPosition, maxUsages, cloned);
+        showElementUsages(handler, null, editor, popupPosition, maxUsages, cloned);
     }
 
     @Nullable
@@ -1005,7 +1042,7 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
     }
 
     private void appendMoreUsages(Editor editor, @NotNull RelativePoint popupPosition, @NotNull FindUsagesHandler handler, int maxUsages) {
-        showElementUsages(handler, editor, popupPosition, maxUsages+USAGES_PAGE_SIZE, getDefaultOptions(handler));
+        showElementUsages(handler, null, editor, popupPosition, maxUsages+USAGES_PAGE_SIZE, getDefaultOptions(handler));
     }
 
     private void addUsageNodes(@NotNull GroupNode root, @NotNull final UsageViewImpl usageView, @NotNull List<UsageNode> outNodes) {
@@ -1161,4 +1198,59 @@ public class ShowReceiversAction extends AnAction implements PopupAction{
         }
     }
 
+    private static class UsageProcessor implements Processor<Usage> {
+        private final UsageTarget[] myUsageTarget;
+        private final Object mutex;
+        private final Set<UsageNode> visibleNodes;
+        private final int maxUsages;
+        private final UsageViewImpl usageView;
+        private final List<Usage> usages;
+        private final PingEDT pingEDT;
+        private Filter filter;
+
+        public UsageProcessor(PsiElement element, Filter filter, Object mutex, List<Usage> usages, Set<UsageNode> visibleNodes, int maxUsages, UsageViewImpl usageView, PingEDT pingEDT) {
+            myUsageTarget = new UsageTarget[]{ new PsiElement2UsageTargetAdapter(element) };
+            this.mutex = mutex;
+            this.visibleNodes = visibleNodes;
+            this.maxUsages = maxUsages;
+            this.usageView = usageView;
+            this.usages = usages;
+            this.pingEDT = pingEDT;
+            this.filter = filter;
+        }
+
+        @Override
+        public boolean process(@NotNull Usage usage) {
+            synchronized (mutex) {
+                if (!filter.shouldShow(usage)) return true;
+                if (visibleNodes.size() >= maxUsages) return false;
+                if (UsageViewManager.isSelfUsage(usage, myUsageTarget)) {
+                    return true;
+                }
+
+                Usage usageToAdd = transform(usage);
+                if (usageToAdd == null) return true;
+
+                UsageNode node = usageView.doAppendUsage(usageToAdd);
+                usages.add(usageToAdd);
+                if (node != null) {
+                    visibleNodes.add(node);
+                    boolean continueSearch = true;
+                    if (visibleNodes.size() == maxUsages) {
+                        visibleNodes.add(MORE_USAGES_SEPARATOR_NODE);
+                        usages.add(MORE_USAGES_SEPARATOR);
+                        continueSearch = false;
+                    }
+                    pingEDT.ping();
+
+                    return continueSearch;
+                }
+                return true;
+            }
+        }
+
+        protected @Nullable Usage transform(@NotNull Usage usage) {
+            return usage;
+        }
+    }
 }
