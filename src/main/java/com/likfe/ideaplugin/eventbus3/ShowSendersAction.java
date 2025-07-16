@@ -341,39 +341,10 @@ public class ShowSendersAction extends AnAction implements PopupAction{
             }
         });
 
+        final Object mutex = new Object();
 
-        Processor<Usage> collect = new Processor<Usage>() {
-            private final UsageTarget[] myUsageTarget = {new PsiElement2UsageTargetAdapter(handler.getPsiElement())};
-            @Override
-            public boolean process(@NotNull Usage usage) {
-                synchronized (usages) {
-                    if (!filter.shouldShow(usage)) return true;
-                    if (visibleNodes.size() >= maxUsages) return false;
-                    if (UsageViewManager.isSelfUsage(usage, myUsageTarget)) {
-                        return true;
-                    }
-
-                    Usage usageToAdd = transform(usage);
-                    if (usageToAdd == null) return true;
-
-                    UsageNode node = usageView.doAppendUsage(usageToAdd);
-                    usages.add(usageToAdd);
-                    if (node != null) {
-                        visibleNodes.add(node);
-                        boolean continueSearch = true;
-                        if (visibleNodes.size() == maxUsages) {
-                            visibleNodes.add(MORE_USAGES_SEPARATOR_NODE);
-                            usages.add(MORE_USAGES_SEPARATOR);
-                            continueSearch = false;
-                        }
-                        pingEDT.ping();
-
-                        return continueSearch;
-                    }
-                    return true;
-                }
-            }
-        };
+        PsiElement eventBusPost = handler.getPsiElement();
+        Processor<Usage> collect = new UsageProcessor(eventBusPost, ShowSendersAction.this.filter, mutex, usages, visibleNodes, maxUsages, usageView, pingEDT);
 
         final ProgressIndicator indicator = FindUsagesManager.startProcessUsages(handler, handler.getPrimaryElements(), handler.getSecondaryElements(), collect, options, new Runnable() {
             @Override
@@ -386,7 +357,7 @@ public class ShowSendersAction extends AnAction implements PopupAction{
                         parent.remove(processIcon);
                         parent.repaint();
                         pingEDT.ping(); // repaint title
-                        synchronized (usages) {
+                        synchronized (mutex) {
                             if (visibleNodes.isEmpty()) {
                                 if (usages.isEmpty()) {
                                     String text = UsageViewBundle.message("no.usages.found.in", searchScopePresentableName(options, project));
@@ -434,10 +405,6 @@ public class ShowSendersAction extends AnAction implements PopupAction{
                 indicator.cancel();
             }
         });
-    }
-
-    protected @Nullable Usage transform(@NotNull Usage usage) {
-        return usage;
     }
 
     @NotNull
@@ -1161,4 +1128,59 @@ public class ShowSendersAction extends AnAction implements PopupAction{
         }
     }
 
+    private static class UsageProcessor implements Processor<Usage> {
+        private final UsageTarget[] myUsageTarget;
+        private final Object mutex;
+        private final Set<UsageNode> visibleNodes;
+        private final int maxUsages;
+        private final UsageViewImpl usageView;
+        private final List<Usage> usages;
+        private final PingEDT pingEDT;
+        private Filter filter;
+
+        public UsageProcessor(PsiElement element, Filter filter, Object mutex, List<Usage> usages, Set<UsageNode> visibleNodes, int maxUsages, UsageViewImpl usageView, PingEDT pingEDT) {
+            myUsageTarget = new UsageTarget[]{ new PsiElement2UsageTargetAdapter(element) };
+            this.mutex = mutex;
+            this.visibleNodes = visibleNodes;
+            this.maxUsages = maxUsages;
+            this.usageView = usageView;
+            this.usages = usages;
+            this.pingEDT = pingEDT;
+            this.filter = filter;
+        }
+
+        @Override
+        public boolean process(@NotNull Usage usage) {
+            synchronized (mutex) {
+                if (!filter.shouldShow(usage)) return true;
+                if (visibleNodes.size() >= maxUsages) return false;
+                if (UsageViewManager.isSelfUsage(usage, myUsageTarget)) {
+                    return true;
+                }
+
+                Usage usageToAdd = transform(usage);
+                if (usageToAdd == null) return true;
+
+                UsageNode node = usageView.doAppendUsage(usageToAdd);
+                usages.add(usageToAdd);
+                if (node != null) {
+                    visibleNodes.add(node);
+                    boolean continueSearch = true;
+                    if (visibleNodes.size() == maxUsages) {
+                        visibleNodes.add(MORE_USAGES_SEPARATOR_NODE);
+                        usages.add(MORE_USAGES_SEPARATOR);
+                        continueSearch = false;
+                    }
+                    pingEDT.ping();
+
+                    return continueSearch;
+                }
+                return true;
+            }
+        }
+
+        protected @Nullable Usage transform(@NotNull Usage usage) {
+            return usage;
+        }
+    }
 }
