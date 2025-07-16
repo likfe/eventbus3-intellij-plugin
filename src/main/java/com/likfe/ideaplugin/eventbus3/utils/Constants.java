@@ -23,5 +23,6 @@ public class Constants {
     public static final String FUN_ANNOTATION_KT = "Subscribe";
     public static final String FUN_EVENT_CLASS = "org.greenrobot.eventbus.EventBus";
     public static final String FUN_EVENT_CLASS_NAME = "EventBus";
+    public static final String ANNO_POST_CLASS = "com.likfe.ideaplugin.eventbus3.Posting";
 
 }
